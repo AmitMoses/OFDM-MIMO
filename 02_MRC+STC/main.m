@@ -8,7 +8,7 @@ Es = 1;
 M = 4;
 x = randi([0 M-1],N,1);
 symbols = qammod(x,M,'UnitAveragePower', true);
-
+symbols_STC = STC_transmission(symbols);
 % dict = Es*qammod(0:M-1,M); % QAM dictionary 
 % symbols = dict(randi(numel(dict),[1 N])).'; % return vec length of L symboles from dict
 
@@ -21,13 +21,12 @@ h_1x4 = (1/sqrt(2))*(randn(4,N) + 1i*randn(4,N)).';
 
 % AWGN
 snr_vec = 0:1:40;
-noise = sqrt(1/2)*(randn(N,1) + 1i*randn(N,1));
-noise_2d = sqrt(1/2)*(randn(N,2) + 1i*randn(N,2));
-noise_4d = sqrt(1/2)*(randn(N,4) + 1i*randn(N,4));
+noise_1x1 = sqrt(1/2)*(randn(N,1) + 1i*randn(N,1));
+noise_1X2 = sqrt(1/2)*(randn(N,2) + 1i*randn(N,2));
+noise_1x4 = sqrt(1/2)*(randn(N,4) + 1i*randn(N,4));
 
 % snr_vec = 25;
 SER_reyleigh = zeros(1,length(snr_vec));
-a = sqrt(h^2./10.^(snr_vec/10));
 for i=1:length(snr_vec)
     
     snr = snr_vec(i);
@@ -36,10 +35,10 @@ for i=1:length(snr_vec)
     
     
     %% Received Signal
-    s_awgn = h.*symbols + p*noise;
-    s_reyleigh = h_1x1.*symbols + p*noise;
-    s_mrc = h_1x2.*repmat(symbols, [1,2]) + p*noise_2d;
-    s_mrc4 = h_1x4.*repmat(symbols, [1,4]) + p*noise_4d;
+    s_awgn = h.*symbols + p*noise_1x1;
+    s_reyleigh = h_1x1.*symbols + p*noise_1x1;
+    s_mrc = h_1x2.*repmat(symbols, [1,2]) + p*noise_1X2;
+    s_mrc4 = h_1x4.*repmat(symbols, [1,4]) + p*noise_1x4;
     
     % AWGN receiver
     rec_awgn = qamdemod(s_awgn./h,M,'UnitAveragePower', true);
@@ -74,7 +73,7 @@ hold on
 semilogy(snr_vec, SER_mrc4)
 grid on
 grid minor
-legend('AWGN','SISO','MRC 1x2','MEC 1x4')
+legend('AWGN','SISO','MRC 1x2','MRC 1x4')
 title('SER for AWGN and Reyleigh Channels')
 xlabel('SNR')
 ylabel('SER')
