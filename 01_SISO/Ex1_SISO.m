@@ -1,0 +1,110 @@
+close all
+clear
+clc
+
+%% Transmmit QPSK 
+N = 1e6; % number of bits
+Nsym = N/2;
+Eb = 1;
+bits = Eb*randi([0 1], 1,N);
+
+bit2bpsk = Eb*(2*bits/Eb-1);
+symbols =  bit2bpsk(1:2:end) +1i*bit2bpsk(2:2:end);
+
+%% Cahnnel
+h_real = randn(1,Nsym);
+h_imag = randn(1,Nsym);
+h = (1/sqrt(2))*(h_real + 1i*h_imag);
+% AWGN
+snr_vec = 0:2.5:40;
+% snr_vec = 25;
+BER_reyleigh = zeros(1,length(snr_vec));
+BER_awgn = zeros(1,length(snr_vec));
+SER_reyleigh = zeros(1,length(snr_vec));
+SER_awgn = zeros(1,length(snr_vec));
+for i=1:length(snr_vec)
+    
+    snr = snr_vec(i);
+    snr_lin = 10^(snr/10);
+    Es = sqrt(2)*Eb;
+    N0 = Es/snr_lin;
+    noise = sqrt(N0/2)*(randn(1,Nsym) + 1i*randn(1,Nsym));
+    
+    %% Received Signal
+    s_awgn = symbols + noise;
+    s_reyleigh = h.*symbols + noise;
+    
+    [bit_rec_awgn, sym_rec_awgn] = qpsk_demod(s_awgn,N,Eb);
+    [rec_bit_reyleigh, sym_rec_reyleigh] = qpsk_demod(s_reyleigh./h,N,Eb);
+
+
+    % BER
+    BER_awgn(i) = 1-sum(eq(bits,bit_rec_awgn))/N;
+    BER_reyleigh(i) = 1-sum(eq(bits,rec_bit_reyleigh))/N;
+    
+    % SER
+    SER_awgn(i) = 1-sum(eq(symbols,sym_rec_awgn))/N;
+    SER_reyleigh(i) = 1-sum(eq(symbols,sym_rec_reyleigh))/N;
+end
+
+figure()
+semilogy(snr_vec, BER_awgn)
+hold on
+semilogy(snr_vec, BER_reyleigh)
+grid on
+grid minor
+legend('AWGN','Reyleigh')
+title('BER for AWGN and Reyleigh Channels')
+xlabel('SNR')
+ylabel('BER')
+
+figure()
+semilogy(snr_vec, SER_awgn)
+hold on
+semilogy(snr_vec, SER_reyleigh)
+grid on
+grid minor
+legend('AWGN','Reyleigh')
+title('SER for AWGN and Reyleigh Channels')
+xlabel('SNR')
+ylabel('SER')
+
+
+%% Taps Channel
+k = 10;
+a = 50 / 3e8;
+b = 100 / 3e8;
+
+f = 2.5e9;
+ts = 1/f;
+t_vec = 0:ts:100*b;
+
+L = 1000;
+H = zeros(L,length(t_vec));
+for i = 1:L
+    tau = a + (b-a)*rand(k,1);
+    time_index = round(tau/ts);
+    
+    h = zeros(length(t_vec),1);
+    h(time_index) = 1;
+    H(i,:) = fft(h);
+end
+
+% figure()
+% stem(t_vec,h);
+% title('h(\tau)')
+% grid on
+% grid minor
+% xlabel('time [sec]')
+% ylabel('Power [W]')
+
+figure()
+subplot(1,2,1)
+hist(real(H(:)),1000)
+title('Real Part')
+
+subplot(1,2,2)
+hist(imag(H(:)),1000)
+title('Image Part')
+
+
