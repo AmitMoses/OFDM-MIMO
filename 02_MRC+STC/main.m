@@ -17,9 +17,12 @@ h = 1;
 h_1x1 = (1/sqrt(2))*(randn(1,N) + 1i*randn(1,N)).';
 h_1x2 = (1/sqrt(2))*(randn(2,N) + 1i*randn(2,N)).';
 h_1x4 = (1/sqrt(2))*(randn(4,N) + 1i*randn(4,N)).';
+h_2x1 = (1/sqrt(2))*(randn(2,N/2) + 1i*randn(2,N/2)).';
+h_2x1 = repelem(h_2x1,2,1);
 
 % AWGN
 snr_vec = 0:1:40;
+% snr_vec = 20;
 noise_1x1 = sqrt(1/2)*(randn(N,1) + 1i*randn(N,1));
 noise_1x2 = sqrt(1/2)*(randn(N,2) + 1i*randn(N,2));
 noise_1x4 = sqrt(1/2)*(randn(N,4) + 1i*randn(N,4));
@@ -32,6 +35,7 @@ SER_mrc4 = zeros(1,length(snr_vec));
 SER_stc = zeros(1,length(snr_vec));
 
 %% Received Signal
+SER_STC_2X1 = [];
 for i=1:length(snr_vec)
     % noise energy
     snr = snr_vec(i);
@@ -43,7 +47,8 @@ for i=1:length(snr_vec)
     s_reyleigh = h_1x1.*symbols + p*noise_1x1;
     s_mrc = h_1x2.*repmat(symbols, [1,2]) + p*noise_1x2;
     s_mrc4 = h_1x4.*repmat(symbols, [1,4]) + p*noise_1x4;
-    s_stc = sum(h_1x2.*symbols_STC,2) + p*noise_1x2;
+    s_stc = sum(h_2x1.*symbols_STC,2) + p*noise_1x1;
+    
     % AWGN receiver
     rec_awgn = qamdemod(s_awgn./h,M,'UnitAveragePower', true);
     
@@ -59,23 +64,19 @@ for i=1:length(snr_vec)
     s_hat4 = MRC_estimation(s_mrc4, h_1x4);
     rec_mrc4 = qamdemod(s_hat4,M,'UnitAveragePower', true);
     
-    % STC receiver
-    s_hat_stc = zeros(N,1);
-    for ii=1:2:N
-        h0 = h_1x2(ii,1);
-        h1 = h_1x2(ii,2);
-        H = [h0, h1 ; conj(h1), -conj(h0)];
-        s_hat_stc(ii:ii+1,1) = inv(H)*s_stc(1,:).';
-    end
-    
+    % STC 2x1
+    s_ = STC_receiver(s_stc,h_2x1);
+    rec_stc = qamdemod(s_,M,'UnitAveragePower', true);
     
     % SER
     SER_reyleigh(i) = 1-sum(eq(x,rec_reyleigh))/N;
     SER_awgn(i) = 1-sum(eq(x,rec_awgn))/N;
     SER_mrc(i) = 1-sum(eq(x,rec_mrc))/N;
     SER_mrc4(i) = 1-sum(eq(x,rec_mrc4))/N;
-    SER_stc(i) = 1-sum(eq(x,s_hat_stc))/N;
+    SER_stc(i) = 1-sum(eq(x,rec_stc))/N;
 end
+
+
 
 %% Plot
 figure()
